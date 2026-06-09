@@ -1,36 +1,23 @@
-
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "Transaction.h"
+#include "Account.h"
 
+Transaction::Transaction() : m_source(nullptr), m_destination(nullptr), m_amount(0.0), m_date("") {}
 
+Transaction::Transaction(std::shared_ptr<Account> source, std::shared_ptr<Account> destination, double amount, const std::string& date)
+    : m_source(source), m_destination(destination), m_amount(amount), m_date(date) {}
 
-Transaction::Transaction(Account* s, Account* d, double amount, const char* date) {
-	m_source = s;
-	m_destination = d;
-	m_amount = amount;
-	SetDate(date);
+std::shared_ptr<Account> Transaction::GetSource() const { 
+    return m_source; 
 }
-Transaction::Transaction(const Transaction& other) {
-	m_source = other.m_source;
-	m_destination = other.m_destination;
-	m_amount = other.m_amount;
-	SetDate(other.m_date);
+
+std::shared_ptr<Account> Transaction::GetDes() const { 
+    return m_destination; 
 }
-void Transaction::SetSource(Account* src) {
-	m_source = src;
+
+double Transaction::GetAmount() const { 
+    return m_amount; 
 }
-void Transaction::SetDes(Account* dst) {
-	m_destination = dst;
+
+std::string Transaction::GetDate() const { 
+    return m_date; 
 }
-void Transaction::SetAmount(double amount) {
-	m_amount = amount;
-}
-void Transaction::SetDate(const char* date) {
-	m_date = new char[strlen(date) + 1];
-	strcpy(m_date, date);
-}
-Account* Transaction::GetSource() const { return m_source; }
-Account* Transaction::GetDes() const { return m_destination; }
-double Transaction::GetAmount() const { return m_amount; }
-char* Transaction::GetDate() const { return m_date; }

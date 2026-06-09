@@ -1,149 +1,103 @@
 #include "Bank.h"
+#include <algorithm>
 
-Bank::Bank() {
-    m_name = NULL;;
-    m_account = NULL;
-    m_bankCode = 0;;
-    m_numbeOfAccounts = 0;
-    m_totalBalance = 0;
-}
+Bank::Bank() : m_name(""), m_bankCode(0), m_totalBalance(0.0) {}
 
-Bank::Bank(const char* name, int code) {
-    SetBankName(name);
-    SetCode(code);
-    SetAccount(NULL,0);
-    SetTotal(0);
-    m_numbeOfAccounts = 0;
-}
+Bank::Bank(const std::string& name, int code) 
+    : m_name(name), m_bankCode(code), m_totalBalance(0.0) {}
 
-Bank::~Bank() {
-    delete m_name; m_numbeOfAccounts;
-    for (int i = 0; i < m_numbeOfAccounts; i++) {
-        delete m_account[i];
-    }
-    delete m_account;
-    m_account = NULL;
-    m_numbeOfAccounts = 0;
-}
-
-void Bank::SetBankName(const char* name) {
-    m_name = new char[strlen(name) + 1];
-    strcpy(m_name, name);
-}
-
-void Bank::SetAccount(Account** account, int numbeOfAccounts) {
-    for (int i = 0; i < numbeOfAccounts; i++) {
-        m_account[i] = account[i];
-    }
-    m_numbeOfAccounts = numbeOfAccounts;
-}
-
-void Bank::SetTotal(double total) {
-    m_totalBalance = total;
+void Bank::SetBankName(const std::string& name) {
+    m_name = name;
 }
 
 void Bank::SetCode(int code) {
     m_bankCode = code;
 }
 
-const char* Bank::GetBankName() const {
+void Bank::SetTotal(double total) {
+    m_totalBalance = total;
+}
+
+std::string Bank::GetBankName() const {
     return m_name;
 }
 
-Account** Bank::GetAccounts() const {
-    return m_account;
-}
-
-int	Bank::GetNumberOfAccounts() const {
-    return m_numbeOfAccounts;
-}
-
-double Bank::GetTotal() const {
-    return m_totalBalance;
-}
-
-int	Bank::GetCode() const {
+int Bank::GetCode() const {
     return m_bankCode;
 }
 
-void Bank::AddAccount(const Account& account) {
-    for (int i = 0; i < m_numbeOfAccounts; i++) {
-        if (account.GetAccountNumber() == m_account[i]->GetAccountNumber())
-            return;
-    }
+double Bank::GetTotal() const {
+    std::lock_guard<std::mutex> lock(m_bankMutex);
+    return m_totalBalance;
+}
 
-    Account** temp = new Account * [m_numbeOfAccounts + 1];
-    for (int i = 0; i < m_numbeOfAccounts; i++) {
-        temp[i] = m_account[i];
-    }
-    temp[m_numbeOfAccounts] = new Account(account);
-    m_numbeOfAccounts++;
-    delete[] m_account;
-    m_account = temp;
+const std::vector<std::shared_ptr<Account>>& Bank::GetAccounts() const {
+    return m_accounts;
+}
+
+void Bank::AddAccount(const Account& account) {
+    std::lock_guard<std::mutex> lock(m_bankMutex);
+    
+    // בדיקה אם החשבון כבר קיים בבנק
+    auto it = std::find_if(m_accounts.begin(), m_accounts.end(), [&](const auto& acc) {
+        return acc->GetAccountNumber() == account.GetAccountNumber();
+    });
+
+    if (it != m_accounts.end()) return; // החשבון כבר קיים
+
+    m_accounts.push_back(std::make_shared<Account>(account));
     m_totalBalance += account.GetBalance();
 }
 
-void Bank::AddAccount(const Person& per, double amount) 
- {
-        Account* account = new Account(per, amount);
-        AddAccount(*account);
- };//open an account for a person using an account copy constarctor,
-    //and then add their account to the set of accounts in the bank
-
+void Bank::AddAccount(const Person& per, double amount) {
+    // יוצר חשבון חדש ישירות לתוך הוקטור
+    auto newAccount = std::make_shared<Account>(per, amount);
+    AddAccount(*newAccount);
+}
 
 void Bank::AddPerson(const Person& newPerson, const Account& account, double amount) {
-    for (int i = 0; i < m_numbeOfAccounts; i++) {
-        if (account.GetAccountNumber() == m_account[i]->GetAccountNumber())
-        {
-            m_account[i]->AddPerson(newPerson, amount);
+    std::lock_guard<std::mutex> lock(m_bankMutex);
+    
+    for (auto& acc : m_accounts) {
+        if (acc->GetAccountNumber() == account.GetAccountNumber()) {
+            acc->AddPerson(newPerson, amount);
             m_totalBalance += amount;
             return;
         }
     }
+    // אם החשבון לא נמצא, פותח חשבון חדש עבור האדם
+    std::lock_guard<std::mutex> unlock(m_bankMutex); // משחרר זמנית לפני קריאה ל-AddAccount שנועלת בעצמה
     AddAccount(newPerson, amount);
 }
-  
 
-void Bank::DeleteAccount(const Account& account)
-{
-	if (m_numbeOfAccounts == 1 && m_account[0]->GetAccountNumber() == account.GetAccountNumber())
-	{
-		m_account[0] = NULL;
-		delete[] m_account;
-		return;
-	}
-	for (int i = 0; i < m_numbeOfAccounts; i++)
-	{
-		if (m_account[i]->GetAccountNumber() == account.GetAccountNumber())
-		{
-			for (int j = i; j < m_numbeOfAccounts - 1; j++)
-			{
-				m_account[j] = m_account[j + 1];
-			}
-			m_numbeOfAccounts--;
-			SetTotal(m_totalBalance - account.GetBalance());
-			break;
-		}
-	}
-	return;
+void Bank::DeleteAccount(const Account& account) {
+    std::lock_guard<std::mutex> lock(m_bankMutex);
+    
+    auto it = std::find_if(m_accounts.begin(), m_accounts.end(), [&](const auto& acc) {
+        return acc->GetAccountNumber() == account.GetAccountNumber();
+    });
+
+    if (it != m_accounts.end()) {
+        m_totalBalance -= (*it)->GetBalance();
+        m_accounts.erase(it);
+    }
 }
-void Bank::DeletePerson(const Person& p)
-{
-    for (int i = 0; i < m_numbeOfAccounts; i++)
-    {
 
-
-        if (m_account[i]->GetPersons()[m_account[i]->GetTotalPersons() - 1]->GetId() == p.GetId())
-        {
-            DeleteAccount(*m_account[i]);
-            break;
-        }
-
-        m_account[i]->DeletePerson(p);
-
-        if (m_account[i]->GetTotalPersons() == 0)
-        {
-            DeleteAccount(*m_account[i]);
+void Bank::DeletePerson(const Person& p) {
+    std::lock_guard<std::mutex> lock(m_bankMutex);
+    
+    for (auto it = m_accounts.begin(); it != m_accounts.end(); ) {
+        auto& acc = *it;
+        
+        // מחיקת האדם מתוך החשבון הספציפי
+        acc->DeletePerson(p);
+        
+        // אם לא נשארו אנשים המשוייכים לחשבון, נסגור את החשבון כולו
+        if (acc->GetPersons().empty()) {
+            m_totalBalance -= acc->GetBalance();
+            it = m_accounts.erase(it); // מוחק ומקדם את האיטרטור בצורה בטוחה
+        } else {
+            ++it;
         }
     }
 }

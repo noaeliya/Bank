@@ -1,32 +1,23 @@
 #include "Person.h"
-using namespace std;
-#include <string.h>
 
-Person::Person() {
-	SetName("NULL");
-	SetId(0);
-}
-Person::Person(const char* name, int id) {
-	SetName(name);
-	SetId(id);
-}
-Person::Person(const Person& other) {
-	SetName(other.m_name);
-	SetId(other.m_id);
-}
-void Person :: SetName(const char* newName) { 
-	m_name = new char[strlen(newName) + 1];// ä÷öàú æéëøåï ìîòøê ãéğîé åäâãøúå
-	strcpy(m_name, newName);
-}
-void Person:: SetId(int newId) {
-	m_id = newId;
-}
-char* Person::GetName() const { return m_name; }
+// ×‘× ××™ ×‘×¨×™×¨×ª ××—×“×œ
+Person::Person() : m_name("NULL"), m_id(0) {}
 
-int	Person::GetId() const{ 
-		return m_id;
+// ×‘× ××™ ×¢× ×¤×¨××˜×¨×™×
+Person::Person(const std::string& name, int id) : m_name(name), m_id(id) {}
+
+void Person::SetName(const std::string& newName) { 
+    m_name = newName; // ×”-string ×× ×”×œ ××ª ×”×§×¦××ª ×”×–×™×›×¨×•×Ÿ ×‘×¢×¦××•!
 }
 
-Person::~Person() {
-	delete[] m_name;
+void Person::SetId(int newId) {
+    m_id = newId;
+}
+
+std::string Person::GetName() const { 
+    return m_name; 
+}
+
+int Person::GetId() const { 
+    return m_id;
 }
